@@ -1,0 +1,28 @@
+# Files with local secrets
+.env
+.env.*
+!.env.example
+
+# Local Postman environments with real credentials
+*.postman_environment.local.json
+
+# Newman reports (except one sample)
+reports/*
+!reports/.gitkeep
+!reports/sample-report.html
+
+# Test run output
+newman/
+*.log
+*.tmp
+
+# npm dependencies (needed for Newman)
+node_modules/
+
+# Editor folders
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
