@@ -1,0 +1,777 @@
+
+{
+  "info": {
+    "_postman_id": "spotify-sdet-appsec-portfolio",
+    "name": "Spotify API - SDET & AppSec",
+    "description": "API test automation and security testing portfolio project. Demonstrates JavaScript assertions, test data management, authentication testing, input validation, and API security checks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{ACCESS_TOKEN}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "https://api.spotify.com"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Authentication & Identity",
+      "item": [
+        {
+          "name": "TC-001 - Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Verify that an authenticated user can retrieve their own profile."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response content type is JSON', function () {",
+                  "    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Response is a JSON object', function () {",
+                  "    pm.expect(body).to.be.an('object').and.not.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Required profile fields have correct types', function () {",
+                  "    pm.expect(body.id).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.display_name).to.be.a('string');",
+                  "    pm.expect(body.type).to.eql('user');",
+                  "});",
+                  "",
+                  "pm.environment.set('USER_ID', body.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Playlist Lifecycle",
+      "item": [
+        {
+          "name": "TC-002 - Create Private Test Playlist",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const runId = Date.now().toString();",
+                  "pm.environment.set('RUN_ID', runId);",
+                  "pm.environment.set('TEST_PLAYLIST_NAME', 'SDET AppSec Test ' + runId);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Created playlist has the expected structure', function () {",
+                  "    pm.expect(body).to.be.an('object');",
+                  "    pm.expect(body.id).to.be.a('string').and.not.empty;",
+                  "    pm.expect(body.name).to.eql(pm.environment.get('TEST_PLAYLIST_NAME'));",
+                  "    pm.expect(body.owner).to.be.an('object');",
+                  "    pm.expect(body.owner.id).to.be.a('string');",
+                  "});",
+                  "",
+                  "pm.test('Playlist is private', function () {",
+                  "    pm.expect(body.public).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.environment.set('PLAYLIST_ID', body.id);",
+                  "pm.environment.set('USER_ID', body.owner.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{TEST_PLAYLIST_NAME}}\",\n  \"description\": \"{{TEST_PLAYLIST_DESCRIPTION}}\",\n  \"public\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me/playlists",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me",
+                "playlists"
+              ]
+            },
+            "description": "Create a private playlist. A unique name is generated for each test run."
+          }
+        },
+        {
+          "name": "TC-003 - Get Current User Playlists",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me/playlists?limit=20",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me",
+                "playlists"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Verify playlist listing and confirm that the test playlist is present."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Response contains an items array', function () {",
+                  "    pm.expect(body.items).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination fields have valid types', function () {",
+                  "    pm.expect(body.limit).to.be.a('number');",
+                  "    pm.expect(body.total).to.be.a('number');",
+                  "});",
+                  "",
+                  "const playlistId = pm.environment.get('PLAYLIST_ID');",
+                  "pm.test('Created test playlist is present in the response', function () {",
+                  "    pm.expect(body.items.some(item => item.id === playlistId)).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-004 - Get Test Playlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}"
+              ]
+            },
+            "description": "Retrieve the playlist created by the test run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "",
+                  "pm.test('Returned playlist ID matches the requested ID', function () {",
+                  "    pm.expect(body.id).to.eql(pm.environment.get('PLAYLIST_ID'));",
+                  "});",
+                  "",
+                  "pm.test('Playlist name matches test data', function () {",
+                  "    pm.expect(body.name).to.eql(pm.environment.get('TEST_PLAYLIST_NAME'));",
+                  "});",
+                  "",
+                  "pm.test('Playlist owner is an object', function () {",
+                  "    pm.expect(body.owner).to.be.an('object');",
+                  "    pm.expect(body.owner.id).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-005 - Update Test Playlist",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{TEST_PLAYLIST_NAME}} Updated\",\n  \"description\": \"Updated by automated SDET API tests\",\n  \"public\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}"
+              ]
+            },
+            "description": "Update the test playlist metadata."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Update request completed successfully', function () {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});",
+                  "",
+                  "pm.environment.set('UPDATED_PLAYLIST_NAME', pm.environment.get('TEST_PLAYLIST_NAME') + ' Updated');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-006 - Add Track to Test Playlist",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"uris\": [\n    \"{{TRACK_URI}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/items",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "items"
+              ]
+            },
+            "description": "Add a track URI to the test playlist. TRACK_URI must be configured before execution."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('Response contains a snapshot ID', function () {",
+                  "    pm.expect(body.snapshot_id).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-007 - Get Playlist Items",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/items?limit=50",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "items"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Verify that playlist items are returned and the requested track is present."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('Items property is an array', function () {",
+                  "    pm.expect(body.items).to.be.an('array');",
+                  "});",
+                  "",
+                  "const trackUri = pm.environment.get('TRACK_URI');",
+                  "pm.test('Added track is present in playlist items', function () {",
+                  "    const found = body.items.some(item => item.item && item.item.uri === trackUri);",
+                  "    pm.expect(found).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-008 - Remove Track from Test Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"uri\": \"{{TRACK_URI}}\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/items",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "items"
+              ]
+            },
+            "description": "Remove the test track from the playlist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "pm.test('Removal response contains a snapshot ID', function () {",
+                  "    pm.expect(body.snapshot_id).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-009 - Verify Track Was Removed",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/items?limit=50",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "items"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Verify that the removed track is no longer present in the playlist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const body = pm.response.json();",
+                  "const trackUri = pm.environment.get('TRACK_URI');",
+                  "",
+                  "pm.test('Removed track is not present in playlist items', function () {",
+                  "    const found = body.items.some(item => item.item && item.item.uri === trackUri);",
+                  "    pm.expect(found).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - API Security",
+      "item": [
+        {
+          "name": "SEC-001 - Request Without Authentication",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Security test: verify that a protected endpoint rejects requests without an access token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthenticated request is rejected with 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error response does not expose an access token', function () {",
+                  "    pm.expect(pm.response.text()).to.not.include(pm.environment.get('ACCESS_TOKEN'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SEC-002 - Request With Invalid Access Token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{INVALID_ACCESS_TOKEN}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me"
+              ]
+            },
+            "description": "Security test: verify that an invalid bearer token is rejected."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid token is rejected with 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Response is not a successful profile response', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SEC-003 - Access Playlist With Invalid ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{INVALID_PLAYLIST_ID}}",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{INVALID_PLAYLIST_ID}}"
+              ]
+            },
+            "description": "Security and input validation test: verify that an invalid resource identifier is rejected."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Invalid playlist ID is rejected', function () {",
+                  "    pm.expect([400, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Invalid resource request does not return playlist data', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SEC-004 - Add Item With Invalid URI",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"uris\": [\n    \"invalid:track:uri\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/items",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "items"
+              ]
+            },
+            "description": "Input validation test: submit a malformed track URI to the playlist items endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Malformed track URI is rejected', function () {",
+                  "    pm.expect([400, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Malformed input does not produce a successful response', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(201);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SEC-005 - Create Playlist Without Required Name",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Request intentionally missing the required name field\",\n  \"public\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/me/playlists",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "me",
+                "playlists"
+              ]
+            },
+            "description": "Input validation test: verify that the API rejects a create-playlist request without a name."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Request without required name is rejected', function () {",
+                  "    pm.expect([400, 422]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('No playlist was created', function () {",
+                  "    pm.expect(pm.response.code).to.not.eql(201);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Cleanup (Manual)",
+      "item": [
+        {
+          "name": "CLEANUP-001 - Unfollow Test Playlist",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{BASE_URL}}/v1/playlists/{{PLAYLIST_ID}}/followers",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "v1",
+                "playlists",
+                "{{PLAYLIST_ID}}",
+                "followers"
+              ]
+            },
+            "description": "Optional cleanup: remove the test playlist from the current user's library. Run manually only after verifying PLAYLIST_ID belongs to the test playlist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cleanup request completed successfully', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
